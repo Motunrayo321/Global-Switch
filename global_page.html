@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌍 Global Switch</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            padding: 20px;
+        }
+
+        .container {
+            text-align: center;
+            max-width: 800px;
+            width: 100%;
+        }
+
+        .title {
+            font-size: 3rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            margin-bottom: 2rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            margin: 2rem 0;
+            padding: 2rem;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .switch-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 200px;
+        }
+
+        .switch-button {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            margin: 1rem 0;
+            display: block;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .switch-button.off {
+            background: linear-gradient(145deg, #e74c3c, #c0392b);
+            color: white;
+        }
+
+        .switch-button.on {
+            background: linear-gradient(145deg, #2ecc71, #27ae60);
+            color: white;
+            box-shadow: 0 0 30px rgba(46, 204, 113, 0.5);
+        }
+
+        .switch-button:hover {
+            transform: scale(1.05);
+        }
+
+        .switch-button:active {
+            transform: scale(0.95);
+        }
+
+        .switch-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status {
+            font-size: 1.2rem;
+            margin: 0.5rem 0;
+            font-weight: bold;
+        }
+
+        .status.on {
+            color: #2ecc71;
+            text-shadow: 0 0 10px rgba(46, 204, 113, 0.3);
+        }
+
+        .status.off {
+            color: #e74c3c;
+        }
+
+        .livestream-container {
+            flex: 1;
+            min-width: 400px;
+        }
+
+        .livestream-title {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: #f8f9fa;
+        }
+
+        .video-container {
+            position: relative;
+            width: 100%;
+            max-width: 640px;
+            margin: 0 auto;
+            background: #000;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .video-placeholder {
+            width: 100%;
+            height: 360px;
+            background: linear-gradient(45deg, #2c3e50, #34495e);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            color: #bdc3c7;
+            font-size: 1.2rem;
+        }
+
+        .video-stream {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .connection-status {
+            margin: 1rem 0;
+            padding: 0.5rem 1rem;
+            border-radius: 25px;
+            font-size: 0.9rem;
+            display: inline-block;
+        }
+
+        .connection-status.connected {
+            background: rgba(46, 204, 113, 0.2);
+            color: #2ecc71;
+            border: 1px solid #2ecc71;
+        }
+
+        .connection-status.disconnected {
+            background: rgba(231, 76, 60, 0.2);
+            color: #e74c3c;
+            border: 1px solid #e74c3c;
+        }
+
+        .stats {
+            margin: 2rem 0;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .stat-box {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 1.5rem;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .cooldown-timer {
+            font-size: 1rem;
+            color: #f39c12;
+            margin: 0.5rem 0;
+        }
+
+        @media (max-width: 768px) {
+            .title {
+                font-size: 2rem;
+            }
+            
+            .main-content {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .livestream-container {
+                min-width: unset;
+            }
+            
+            .switch-container {
+                min-width: unset;
+            }
+            
+            .switch-button {
+                width: 100px;
+                height: 100px;
+                font-size: 0.9rem;
+            }
+            
+            .video-placeholder {
+                height: 240px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="title">🌍 Global Switch</h1>
+        <p class="subtitle">Control a real light bulb from anywhere in the world</p>
+        
+        <div class="connection-status disconnected" id="connectionStatus">
+            🔴 Connecting to server...
+        </div>
+
+        <div class="main-content">
+            <div class="switch-container">
+                <div class="status off" id="switchStatus">💡 Light is OFF</div>
+                <button class="switch-button off" id="switchButton" onclick="toggleSwitch()" disabled>
+                    CLICK TO TURN ON
+                </button>
+                <div class="cooldown-timer" id="cooldownTimer" style="display: none;"></div>
+            </div>
+
+            <div class="livestream-container">
+                <h2 class="livestream-title">📹 Live Camera Feed</h2>
+                <div class="video-container">
+                    <!-- Placeholder for now - replace with actual stream -->
+                    <div class="video-placeholder" id="videoPlaceholder">
+                        <div style="font-size: 3rem; margin-bottom: 1rem;">📷</div>
+                        <div>Livestream will appear here</div>
+                        <div style="font-size: 0.8rem; margin-top: 0.5rem; opacity: 0.7;">
+                            ESP32 camera feed coming soon...
+                        </div>
+                    </div>
+                    <!-- Uncomment and configure when you have a stream URL -->
+                    <!-- <img src="http://YOUR_ESP32_IP:PORT/stream" class="video-stream" id="videoStream" style="display: none;" onerror="showVideoPlaceholder()"> -->
+                </div>
+            </div>
+        </div>
+
+        <div class="stats">
+            <div class="stat-box">
+                <div class="stat-value" id="totalSwitches">0</div>
+                <div class="stat-label">Total Switches Today</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value" id="onlineUsers">1</div>
+                <div class="stat-label">Users Online</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value" id="currentState">OFF</div>
+                <div class="stat-label">Current State</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const SERVER_URL = 'ws://localhost:3001'; // Change this to your backend URL
+        const COOLDOWN_TIME = 5000; // 5 seconds cooldown
+        
+        // Global variables
+        let socket;
+        let isConnected = false;
+        let switchState = false;
+        let canToggle = true;
+        let cooldownInterval;
+
+        // DOM elements
+        const switchButton = document.getElementById('switchButton');
+        const switchStatus = document.getElementById('switchStatus');
+        const connectionStatus = document.getElementById('connectionStatus');
+        const cooldownTimer = document.getElementById('cooldownTimer');
+        const totalSwitches = document.getElementById('totalSwitches');
+        const onlineUsers = document.getElementById('onlineUsers');
+        const currentState = document.getElementById('currentState');
+
+        // Initialize WebSocket connection
+        function initializeConnection() {
+            try {
+                socket = io(SERVER_URL);
+
+                socket.on('connect', () => {
+                    console.log('Connected to server');
+                    isConnected = true;
+                    updateConnectionStatus(true);
+                    switchButton.disabled = false;
+                });
+
+                socket.on('disconnect', () => {
+                    console.log('Disconnected from server');
+                    isConnected = false;
+                    updateConnectionStatus(false);
+                    switchButton.disabled = true;
+                });
+
+                socket.on('switchStateUpdate', (data) => {
+                    console.log('Switch state update:', data);
+                    updateSwitchState(data.state, false);
+                    if (data.stats) {
+                        updateStats(data.stats);
+                    }
+                });
+
+                socket.on('userCountUpdate', (count) => {
+                    onlineUsers.textContent = count;
+                });
+
+                socket.on('error', (error) => {
+                    console.error('Socket error:', error);
+                });
+
+            } catch (error) {
+                console.error('Failed to initialize connection:', error);
+                // Fallback to demo mode
+                initDemoMode();
+            }
+        }
+
+
+        // Toggle switch function
+        function toggleSwitch() {
+            if (!canToggle) return;
+
+            if (isConnected && socket) {
+                // Send to backend
+                socket.emit('toggleSwitch');
+            } else {
+                // Demo mode - just toggle locally
+                updateSwitchState(!switchState, true);
+            }
+
+            // Start cooldown
+            startCooldown();
+        }
+
+        // Update switch state
+        function updateSwitchState(newState, isLocal = false) {
+            switchState = newState;
+            
+            const button = switchButton;
+            const status = switchStatus;
+            const stateDisplay = currentState;
+
+            if (switchState) {
+                button.className = 'switch-button on';
+                button.textContent = 'CLICK TO TURN OFF';
+                status.textContent = '💡 Light is ON';
+                status.className = 'status on';
+                stateDisplay.textContent = 'ON';
+            } else {
+                button.className = 'switch-button off';
+                button.textContent = 'CLICK TO TURN ON';
+                status.textContent = '💡 Light is OFF';
+                status.className = 'status off';
+                stateDisplay.textContent = 'OFF';
+            }
+
+            if (isLocal) {
+                // Update local stats in demo mode
+                const current = parseInt(totalSwitches.textContent) || 0;
+                totalSwitches.textContent = current + 1;
+            }
+        }
+
+        // Start cooldown timer
+        function startCooldown() {
+            canToggle = false;
+            switchButton.disabled = true;
+            
+            let timeLeft = COOLDOWN_TIME / 1000;
+            cooldownTimer.style.display = 'block';
+            cooldownTimer.textContent = `Wait ${timeLeft}s before next switch`;
+
+            cooldownInterval = setInterval(() => {
+                timeLeft--;
+                if (timeLeft > 0) {
+                    cooldownTimer.textContent = `Wait ${timeLeft}s before next switch`;
+                } else {
+                    clearInterval(cooldownInterval);
+                    cooldownTimer.style.display = 'none';
+                    canToggle = true;
+                    switchButton.disabled = !isConnected && socket ? false : false;
+                    if (!isConnected) switchButton.disabled = false; // Enable for demo mode
+                }
+            }, 1000);
+        }
+
+        // Update connection status
+        function updateConnectionStatus(connected) {
+            if (connected) {
+                connectionStatus.innerHTML = '🟢 Connected to server';
+                connectionStatus.className = 'connection-status connected';
+            } else {
+                connectionStatus.innerHTML = '🔴 Disconnected from server';
+                connectionStatus.className = 'connection-status disconnected';
+            }
+        }
+
+        // Update stats
+        function updateStats(stats) {
+            if (stats.totalSwitches !== undefined) {
+                totalSwitches.textContent = stats.totalSwitches;
+            }
+            if (stats.onlineUsers !== undefined) {
+                onlineUsers.textContent = stats.onlineUsers;
+            }
+        }
+
+        // Show video placeholder (for error handling)
+        function showVideoPlaceholder() {
+            document.getElementById('videoPlaceholder').style.display = 'flex';
+            const videoStream = document.getElementById('videoStream');
+            if (videoStream) {
+                videoStream.style.display = 'none';
+            }
+        }
+
+        // Initialize when page loads
+        window.addEventListener('load', () => {
+            initializeConnection();
+            
+            // Try to load ESP32 camera stream if available
+            // Uncomment these lines when you have your ESP32 camera ready
+            /*
+            const videoStream = document.getElementById('videoStream');
+            if (videoStream) {
+                videoStream.onload = () => {
+                    document.getElementById('videoPlaceholder').style.display = 'none';
+                    videoStream.style.display = 'block';
+                };
+            }
+            */
+        });
+
+        // Handle page visibility changes
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible' && !isConnected) {
+                initializeConnection();
+            }
+        });
+    </script>
+</body>
+</html>
